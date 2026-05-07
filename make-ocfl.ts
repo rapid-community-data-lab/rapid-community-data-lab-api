@@ -3,7 +3,8 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const repository = ocfl.storage({
-  root: '/opt/storage/oni/ocfl',
+  root: process.env.OCFL_PATH || '/opt/storage/oni/ocfl',
+  workspace: process.env.OCFL_SCRATCH || '/opt/storage/oni/scratch-ocfl',
   layout: {
     extensionName: '000N-path-direct-storage-layout'
   },

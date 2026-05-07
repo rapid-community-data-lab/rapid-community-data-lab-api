@@ -25,10 +25,9 @@ export class StructuralIndexer extends Indexer {
     const pq = new PromiseQueue(4, async (opt: any) => {
       for (const tableName in opt) {
         const data = opt[tableName];
-        //console.log(data.Metadatalicense);
         if (data) {
           // @ts-ignore
-          await prisma[tableName].create({ data });
+          await prisma[tableName].upsert({ where: { id: data.id }, create: data, update: data });
         }
       }
     });
@@ -65,12 +64,15 @@ export class StructuralIndexer extends Indexer {
       if (entityType.endsWith('://schema.org/MediaObject') || entityType === 'File') {
         const storagePath = entity['@id'];
         const f = await crateObject.file(storagePath);
+        // contentSize from RO-Crate is typically a string (often wrapped in an array); Prisma expects BigInt.
+        const rawSize = (Array.isArray(entity.contentSize) ? entity.contentSize[0] : entity.contentSize) ?? f.size ?? 0;
+        const sizeBig = typeof rawSize === 'bigint' ? rawSize : BigInt(Math.max(0, Math.trunc(Number(rawSize)) || 0));
         /* @ts-ignore */
         param.file = {
           id: entityId,
           filename: storagePath.split('/').pop(),
           mediaType: entity.encodingFormat?.find(v => typeof v === 'string') || 'application/octet-stream',
-          size: entity.contentSize ?? f.size ?? 0,
+          size: sizeBig,
           meta: {
             storagePath,
             crc32: f.crc32

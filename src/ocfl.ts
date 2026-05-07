@@ -8,18 +8,17 @@ import type { CrateObject, Indexer } from './indexer/indexer.ts';
 import { SearchIndexer } from './indexer/search.ts';
 import { StructuralIndexer } from './indexer/structural.ts';
 import { PromiseQueue } from './utils.ts';
-const crc32 = await createCRC32();
 
 const ocflConf = {
-  ocflPath: '/opt/storage/oni/ocfl',
+  ocflPath: process.env.OCFL_PATH || '/opt/storage/oni/ocfl',
   ocflPathInternal: '/ocfl',
-  ocflScratch: '/opt/storage/oni/scratch-ocfl',
+  ocflScratch: process.env.OCFL_SCRATCH || '/opt/storage/oni/scratch-ocfl',
   ocflTestPath: '/opt/storage/oni/test/ocfl',
   ocflTestScratch: '/opt/storage/oni/test/scratch-ocfl',
   catalogFilename: 'ro-crate-metadata.json',
   hashAlgorithm: 'md5',
   create: {
-    repoName: 'LDACA',
+    repoName: 'RAPID_COMMUNITY_DATA_LAB',
     collections: '../test-data/ingest-crate-list.development.json',
   },
   previewPath: '/opt/storage/oni/temp/ocfl/previews/',
@@ -27,7 +26,7 @@ const ocflConf = {
 };
 
 const { defaultLicense, defaultMetadataLicense } = config;
-const ocflPath = '/opt/storage/oni/ocfl';
+const ocflPath = ocflConf.ocflPath;
 const ocflPathInternal = 'ocfl';
 
 let INDEXER: { [key: string]: Indexer };
@@ -70,14 +69,6 @@ export async function init(opts: any) {
   }
 }
 
-async function calculateCrc32(file) {
-  crc32.init();
-  for await (const chunk of (await file.stream())) {
-    crc32.update(chunk);
-  }
-  return crc32.digest('hex');
-}
-
 function wrap(ocflObject: OcflObject): CrateObject {
   return {
     root: ocflObject.root,
@@ -86,10 +77,26 @@ function wrap(ocflObject: OcflObject): CrateObject {
     },
     async file(path: string) {
       const file = ocflObject.getFile({ logicalPath: path });
-      return { 
-        size: file.size ?? file.fixity?.size ?? (await file.stat()).size,
-        crc32: file.fixity?.crc32 ?? await calculateCrc32(file)
-      };
+      // getFile returns undefined when the path is not a logical entry (e.g. external URLs).
+      if (!file) return { size: undefined as unknown as number, crc32: '' };
+      const knownCrc32 = file.fixity?.crc32;
+      const knownSize = file.size ?? file.fixity?.size;
+      // Fast path: both values present in the inventory/fixity block.
+      if (knownSize != null && knownCrc32) {
+        return { size: Number(knownSize), crc32: knownCrc32 };
+      }
+      // Fallback: read content once, derive whichever value is missing.
+      const buf: Buffer = await file.buffer();
+      const size = knownSize != null ? Number(knownSize) : buf.length;
+      let crc32hex = knownCrc32;
+      if (!crc32hex) {
+        // Fresh hasher per call so concurrent indexer tasks don't interleave.
+        const c = await createCRC32();
+        c.init();
+        c.update(buf);
+        crc32hex = c.digest('hex');
+      }
+      return { size, crc32: crc32hex };
     }
   };
 }

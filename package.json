@@ -1,5 +1,5 @@
 {
-  "name": "ldacapi",
+  "name": "rapid-community-data-lab-api",
   "version": "1.0.0",
   "description": "Implementation of Arocapi for Language Data Commons - REST API using TypeScript, Fastify, and Prisma",
   "main": "src/index.ts",

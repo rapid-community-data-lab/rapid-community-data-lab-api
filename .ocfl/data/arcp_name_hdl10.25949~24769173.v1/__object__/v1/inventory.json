@@ -1,0 +1,29 @@
+{
+  "id": "arcp://name,hdl10.25949~24769173.v1",
+  "digestAlgorithm": "sha512",
+  "type": "https://ocfl.io/1.1/spec/#inventory",
+  "contentDirectory": "content",
+  "manifest": {
+    "d9408a7b46cbda2b1a20108927a02386a80ae08c4e30b0c1833a7a83789b8e377840f7359e43dff10f9376ecc2341b734e58aaadd0fb87277081798a069cda12": [
+      "v1/content/ro-crate-metadata.json"
+    ]
+  },
+  "versions": {
+    "v1": {
+      "created": "2026-04-27T06:04:55.480Z",
+      "state": {
+        "d9408a7b46cbda2b1a20108927a02386a80ae08c4e30b0c1833a7a83789b8e377840f7359e43dff10f9376ecc2341b734e58aaadd0fb87277081798a069cda12": [
+          "ro-crate-metadata.json"
+        ]
+      }
+    }
+  },
+  "head": "v1",
+  "fixity": {
+    "crc32": {
+      "4dca2612": [
+        "v1/content/ro-crate-metadata.json"
+      ]
+    }
+  }
+}

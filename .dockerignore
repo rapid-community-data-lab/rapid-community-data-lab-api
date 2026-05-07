@@ -1,0 +1,23 @@
+# Dockerignore for the API image build context.
+node_modules
+.git
+.idea
+.vscode
+.ocfl
+test-data
+coverage
+dist
+*.log
+.env
+.env.*
+!.env.example
+docker-compose*.yml
+README.md
+TESTING.md
+LICENSE
+.DS_Store
+**/.DS_Store
+src/generated
+prisma/arocapi
+test_*.http
+make-ocfl.ts

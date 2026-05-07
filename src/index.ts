@@ -5,9 +5,9 @@ import { Client } from '@opensearch-project/opensearch';
 import { PrismaPg } from "@prisma/adapter-pg";
 import type { Options } from 'arocapi';
 import arocapi, { AllPublicAccessTransformer, AllPublicFileAccessTransformer } from 'arocapi';
-import Fastify, { type RegisterOptions } from 'fastify';
+import Fastify from 'fastify';
 import { Readable } from 'node:stream';
-import ldacapi, { fileHandler } from './app.ts';
+import rapidCommunityDataLabApi, { fileHandler } from './app.ts';
 import { config } from './configuration.ts';
 import { PrismaClient } from './generated/prisma/client.ts';
 
@@ -28,7 +28,7 @@ const fastify = Fastify({
 });
 export const logger = fastify.log;
 
-const appOpt: Options & RegisterOptions = { 
+const appOpt: Options = {
   prisma,
   opensearch,
   disableCors: true,
@@ -64,23 +64,101 @@ const appOpt: Options & RegisterOptions = {
       contentType: 'application/ld+json',
       contentLength: Buffer.byteLength(JSON.stringify(entity.meta.rocrate)),
     }),
-  },
-  prefix: config.prefix || '',
+  }
 };
 
 //fastify.register(fastifySensible);
 fastify.register(cors, {
   methods: ['HEAD', 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 });
-fastify.register(fastifyRoutes, { prefix: appOpt.prefix });
+fastify.register(fastifyRoutes);
+
+// OS-only RO-Crate fallback.
+fastify.addHook('preHandler', async (request, reply) => {
+  const m = request.url.match(/^\/entity\/([^/?]+)\/rocrate(?:\?.*)?$/);
+  if (!m) return;
+  if (request.method !== 'GET' && request.method !== 'HEAD') return;
+
+  let id: string;
+  try { id = decodeURIComponent(m[1]!); } catch { return; }
+
+  try {
+    const exists = await prisma.entity.findUnique({ where: { id }, select: { id: true } });
+    if (exists) return;
+  } catch {
+    return;
+  }
+
+  let src: Record<string, unknown> | undefined;
+  try {
+    const osRes = (await opensearch.get({ index: config.search.entityIndex, id })) as {
+      body?: { found?: boolean; _source?: Record<string, unknown> };
+    };
+    if (!osRes?.body?.found || !osRes.body._source) return;
+    src = osRes.body._source;
+  } catch {
+    return;
+  }
+
+  const rocrate = buildMinimalROCrateFromOS(id, src);
+  const json = JSON.stringify(rocrate, null, 2);
+  reply.header('Content-Type', 'application/ld+json');
+  reply.header('Content-Length', String(Buffer.byteLength(json)));
+  if (request.method === 'HEAD') {
+    return reply.code(200).send();
+  }
+  return reply.code(200).send(json);
+});
+
 fastify.register(arocapi, appOpt);
-fastify.register(ldacapi, appOpt);
+fastify.register(rapidCommunityDataLabApi, appOpt);
+
+function buildMinimalROCrateFromOS(id: string, src: Record<string, unknown>) {
+  const toArr = (v: unknown): unknown[] => (v == null ? [] : Array.isArray(v) ? v : [v]);
+  const reservedRoot = new Set([
+    '@id', '@type', 'rocrateRootId', 'id', 'entityId', 'entityType',
+    'rootCollection', '_text',
+  ]);
+
+  const types = toArr((src as any)['@type']).map(String).filter(Boolean);
+  const root: Record<string, unknown> = {
+    '@id': './',
+    '@type': Array.from(new Set(['Dataset', ...types])),
+    name: toArr(src.name).map(String),
+  };
+  if (src.description != null) root.description = toArr(src.description).map(String);
+  if (src.metadataLicenseId) {
+    root.metadataLicense = [{ '@id': String(src.metadataLicenseId) }];
+  }
+  if (src.contentLicenseId) {
+    root.license = [{ '@id': String(src.contentLicenseId) }];
+  }
+  root.identifier = [{ name: ['id'], value: [String(src.entityId ?? id)] }];
+
+  for (const [k, v] of Object.entries(src)) {
+    if (reservedRoot.has(k) || k in root || v == null) continue;
+    root[k] = Array.isArray(v) ? v : [v];
+  }
+
+  return {
+    '@context': 'https://w3id.org/ro/crate/1.1/context',
+    '@graph': [
+      {
+        '@id': 'ro-crate-metadata.json',
+        '@type': 'CreativeWork',
+        conformsTo: { '@id': 'https://w3id.org/ro/crate/1.1' },
+        about: { '@id': './' },
+      },
+      root,
+    ],
+  };
+}
 
 // Run the server!
 (async function () {
   try {
     await fastify.ready();
-    await fastify.listen({ port: config.port, host: config.host });
+    await fastify.listen({ port: config.port, host: process.env.HOST || '0.0.0.0' })
     if (config.isDev) {
       fastify.log.info(`Server is running on development mode`);
     }

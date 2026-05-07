@@ -5,15 +5,14 @@ const isDev = env.NODE_ENV ? (env.NODE_ENV === 'development' || env.NODE_ENV ===
 export default {
   package: packageJson,
   isDev,
-  databaseUrl: env.DATABASE_URL || 'postgresql://ldaca:ldaca@localhost:5432/ldaca',
+  databaseUrl: env.DATABASE_URL || 'postgresql://rapid_community_data_lab:rapid_community_data_lab@localhost:5432/rapid_community_data_lab',
   opensearchUrl: env.OPENSEARCH_URL || 'http://localhost:9200',
-  port: parseInt(env.LDACAPI_PORT || '8080'),
-  host: env.LDACAPI_HOST,
+  port: parseInt(env.RAPID_COMMUNITY_DATA_LAB_API_PORT || '8080'),
   logLevel: env.LOG_LEVEL || (isDev ? 'debug' : 'info'),
   tokenAdmin: env.TOKEN_ADMIN || '1234-1234-1234-1234',
-  defaultLicense: '',
-  defaultMetadataLicense: '',
-  prefix: '/api',
+  defaultLicense: 'https://creativecommons.org/licenses/by/4.0/',
+  defaultMetadataLicense: 'https://creativecommons.org/licenses/by/4.0/',
+
   indexType: {
     RepositoryCollection: 'https://w3id.org/ldac/profile#Collection',
     RepositoryObject: 'https://w3id.org/ldac/profile#Object',
@@ -78,7 +77,8 @@ export default {
           //recordType: { type: 'keyword' },
           //root: { type: 'keyword' },
           inLanguage: { type: 'keyword' },
-          location: { type: 'geo_shape', doc_values: false }, //at the moment the property name location is hardcoded.
+          // doc_values must be true so geohash_grid aggregation (Map View) works on geo_shape.
+          location: { type: 'geo_shape', doc_values: true },
           mediaType: { type: 'keyword' },
           datePublished: { type: 'date_range' },
           dateCreated: { type: 'date_range' },

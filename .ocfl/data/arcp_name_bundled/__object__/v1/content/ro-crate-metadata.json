@@ -1,0 +1,286 @@
+{
+  "@context": [
+    "https://w3id.org/ro/crate/1.1/context",
+    "https://w3id.org/ldac/context",
+    {
+      "@vocab": "http://schema.org/"
+    }
+  ],
+  "@graph": [
+    {
+      "@id": "ro-crate-metadata.json",
+      "@type": "CreativeWork",
+      "identifier": "ro-crate-metadata.json",
+      "licence": "https://creativecommons.org/licenses/by/4.0/",
+      "about": {
+        "@id": "arcp://name,bundled"
+      }
+    },
+    {
+      "@id": "arcp://name,bundled",
+      "@type": [
+        "Dataset",
+        "RepositoryCollection"
+      ],
+      "conformsTo": {
+        "@id": "https://w3id.org/ldac/profile#Collection"
+      },
+      "identifier": {
+        "@id": "_:local-id:LDaCA:arcp://name,bundled"
+      },
+      "name": "Corpus of Oni",
+      "description": "Test data that contains sub collections in one crate",
+      "license": {
+        "@id": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      "publisher": {
+        "@id": "https://ldaca.edu.au"
+      },
+      "datePublished": "2023-12-21",
+      "author": [
+        {
+          "@id": "https://orcid.org/0001"
+        },
+        {
+          "@id": "https://orcid.org/0002"
+        },
+        {
+          "@id": "https://orcid.org/0000-0000-0000-0003"
+        }
+      ],
+      "rightsHolder": {
+        "@id": "https://ldaca.edu.au"
+      },
+      "accountablePerson": {
+        "@id": "https://orcid.org/0001"
+      },
+      "inLanguage": {
+        "@id": "https://glottolog.org/resource/languoid/id/stan1293"
+      },
+      "contentLocation": {
+        "@id": "#place_A-QLD"
+      },
+      "spatialCoverage": {
+        "@id": "#place_A-QLD"
+      },
+      "indexableText": [
+        {
+          "@id": "data.txt"
+        }
+      ],
+      "hasPart": [
+        {
+          "@id": "data.txt"
+        },
+        {
+          "@id": "image.jpg"
+        }
+      ],
+      "pcdm:hasMember": [
+        {
+          "@id": "arcp://name,bundled/intro"
+        },
+        {
+          "@id": "arcp://name,bundled/history"
+        }
+      ]
+    },
+    {
+      "@id": "https://creativecommons.org/licenses/by/4.0/",
+      "@type": "OrganizationReuseLicense",
+      "description": "You are free to share (copy and redistribute the material in any medium or format) and adapt (remix, transform and build upon the material for any purpose, even commercially).",
+      "name": "Attribution 4.0 International (CC BY 4.0)"
+    },
+    {
+      "@id": "https://uq.edu.au",
+      "@type": "Organization",
+      "name": "The University of Queensland"
+    },
+    {
+      "@id": "https://ldaca.edu.au",
+      "@type": "Organization",
+      "conformsTo": {
+        "@id": "https://w3id.org/ldac/profile#Organization"
+      },
+      "name": "Ldaca"
+    },
+    {
+      "@id": "https://orcid.org/0001",
+      "@type": "Person",
+      "name": "John Doe"
+    },
+    {
+      "@id": "https://orcid.org/0002",
+      "@type": "Person",
+      "conformsTo": {
+        "@id": "https://w3id.org/ldac/profile#Person"
+      },
+      "name": "Jane Doe"
+    },
+    {
+      "@id": "https://glottolog.org/resource/languoid/id/stan1293",
+      "@type": "Language",
+      "alternateName": [
+        "English (Standard Southern British)",
+        "Englisch",
+        "Anglais moderne [fr]",
+        "English [en]",
+        "Inglese moderno [it]",
+        "Inglês moderno [pt]",
+        "Modern English [en]",
+        "Moderna angla lingvo [eo]",
+        "Moderne engelsk [no]",
+        "Modernes Englisch [de]",
+        "Nyengelska [sv]",
+        "anglais [fr]",
+        "თანამედროვე ინგლისური პერიოდი [ka]",
+        "現代英語 [zh]",
+        "近代英語 [ja]"
+      ],
+      "geo": {
+        "@id": "#English"
+      },
+      "iso639-3": "eng",
+      "languageCode": "stan1293",
+      "name": "English",
+      "sameAs": {
+        "@id": "https://www.ethnologue.com/language/eng"
+      },
+      "source": "Glottolog"
+    },
+    {
+      "@id": "data.txt",
+      "@type": "File",
+      "dateModified": "2021-11-10T11:16:31+11:00",
+      "description": "Test data",
+      "encodingFormat": "text/plain",
+      "inLanguage": {
+        "@id": "https://glottolog.org/resource/languoid/id/stan1293"
+      },
+      "name": "Corpus of Oni Test Data"
+    },
+    {
+      "@id": "image.jpg",
+      "@type": "File",
+      "dateModified": "2021-11-10T11:16:31+11:00",
+      "description": "Test image",
+      "encodingFormat": "image/jpeg",
+      "name": "Corpus of Oni Test Image"
+    },
+    {
+      "@id": "arcp://name,bundled/intro",
+      "@type": "RepositoryObject",
+      "author": {
+        "@id": "https://orcid.org/0001"
+      },
+      "citation": "Journal of the Ancient, 2000",
+      "communicationMode": {
+        "@id": "https://w3id.org/ldac/terms#WrittenLanguage"
+      },
+      "conformsTo": {
+        "@id": "https://w3id.org/ldac/profile#Object"
+      },
+      "dateCreated": "1788",
+      "hasPart": [
+        {
+          "@id": "intro.txt"
+        },
+        {
+          "@id": "media/intro.mpeg"
+        }
+      ],
+      "indexableText": {
+        "@id": "intro.txt"
+      },
+      "inLanguage": {
+        "@id": "https://glottolog.org/resource/languoid/id/stan1293"
+      },
+      "name": "Introduction to Oni"
+    },
+    {
+      "@id": "arcp://name,bundled/history",
+      "@type": "RepositoryObject",
+      "author": {
+        "@id": "https://orcid.org/0002"
+      },
+      "communicationMode": {
+        "@id": "https://w3id.org/ldac/terms#WrittenLanguage"
+      },
+      "conformsTo": {
+        "@id": "https://w3id.org/ldac/profile#Object"
+      },
+      "dateCreated": "1788",
+      "hasPart": [
+        {
+          "@id": "history.pdf"
+        }
+      ],
+      "inLanguage": {
+        "@id": "https://glottolog.org/resource/languoid/id/stan1293"
+      },
+      "name": "History of Oni"
+    },
+    {
+      "@id": "intro.txt",
+      "@type": "File",
+      "dateModified": "2021-11-10T11:16:31+11:00",
+      "description": "Introduction",
+      "encodingFormat": "text/plain",
+      "inLanguage": {
+        "@id": "https://glottolog.org/resource/languoid/id/stan1293"
+      },
+      "name": "Intro Text"
+    },
+    {
+      "@id": "media/intro.mpeg",
+      "@type": "File",
+      "dateModified": "2021-11-10T11:16:31+11:00",
+      "description": "Test video",
+      "encodingFormat": "audio/mpeg",
+      "name": "Corpus of Oni Test Video"
+    },
+    {
+      "@id": "history.pdf",
+      "@type": "File",
+      "dateModified": "2021-11-10T11:16:31+11:00",
+      "description": "Test pdf",
+      "encodingFormat": "application/pdf",
+      "name": "Corpus of Oni Test PDF"
+    },
+    {
+      "@id": "#place_A-QLD",
+      "@type": "Place",
+      "name": "Queensland",
+      "geo": {
+        "@id": "#geo_QLD"
+      }
+    },
+    {
+      "@id": "#geo_QLD",
+      "@type": "Geometry",
+      "name": "Queensland",
+      "asWKT": "POLYGON((138.0 -29.0, 153.0 -29.0, 153.0 -10.0, 138.0 -10.0, 138.0 -29.0))"
+    },
+    {
+      "@id": "#place_A-VIC",
+      "@type": "Place",
+      "name": "Victoria",
+      "geo": "POLYGON((140.961681 -39.15919, 150.0 -39.15919, 150.0 -34.0, 140.961681 -34.0, 140.961681 -39.15919))"
+    },
+    {
+      "@id": "https://github.com/Language-Research-Technology/crate-o",
+      "@type": "SoftwareApplication",
+      "conformsTo": {
+        "@id": "https://w3id.org/ldac/profile#SoftwareApplication"
+      },
+      "name": "Crate-O",
+      "datePublished": "2026-04-11",
+      "author": {
+        "@id": "https://orcid.org/0000-0002-4438-2755"
+      },
+      "programmingLanguage": "JavaScript",
+      "url": "https://github.com/Language-Research-Technology/crate-o",
+      "description": "Browser-based editor for RO Crates"
+    }
+  ]
+}

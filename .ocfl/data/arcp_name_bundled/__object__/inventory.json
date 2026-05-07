@@ -1,0 +1,74 @@
+{
+  "id": "arcp://name,bundled",
+  "digestAlgorithm": "sha512",
+  "type": "https://ocfl.io/1.1/spec/#inventory",
+  "contentDirectory": "content",
+  "manifest": {
+    "f84179f35acc41aa3ff1e2c494c66f2038a734b37b3c253c6c3764ddad9ba265ba0689fb49262e89f904584138fd5cf13caf924082dc58856ed1aa40e41f3331": [
+      "v1/content/ro-crate-metadata.json"
+    ],
+    "ad9c4ad38a26703e84a156ba9357f64238ba4ff50a59fb885928a26b3e1fa2897522d4213ce391b0410f970cc898d9dc8ed1e17769dff6b786d5620d8569e5a1": [
+      "v1/content/data.txt"
+    ],
+    "438be86a360c002423eab65712aadb089066e442766c723724825ca77b476d1b6673d0af4b27a5098ff4fe6c17a5bb424a44473b94d9cbcbc46740b0d85280c6": [
+      "v1/content/intro.txt"
+    ],
+    "16d48bb3e962ea0bf3ad59d937fbf14af13fdb7c0c8e41e354068c43d84dd33c7e8ec302ce68481e7401955a987110216928d7207d8cef1e5373ad3a16dc43b5": [
+      "v1/content/history.pdf"
+    ],
+    "95c1ac283ba9e94aa1bd9242a27b8300f2d7c8b3d011daa793a87267fbbf7d09bf453de71e187f9b486dcb7cafba08e0b43c963a1cc5dc88419707e5bac01ece": [
+      "v1/content/image.jpg"
+    ],
+    "d547cf82108569315d9d7944dd2ba82bdf95902b7a8258a6b16516dd2647d7a6efa7ec456c4ef1287f26b57a9868e7ddd2f34f535a0ea65e6c295a24b330183c": [
+      "v1/content/media/intro.mpeg"
+    ]
+  },
+  "versions": {
+    "v1": {
+      "created": "2026-04-26T16:41:43.762Z",
+      "state": {
+        "f84179f35acc41aa3ff1e2c494c66f2038a734b37b3c253c6c3764ddad9ba265ba0689fb49262e89f904584138fd5cf13caf924082dc58856ed1aa40e41f3331": [
+          "ro-crate-metadata.json"
+        ],
+        "ad9c4ad38a26703e84a156ba9357f64238ba4ff50a59fb885928a26b3e1fa2897522d4213ce391b0410f970cc898d9dc8ed1e17769dff6b786d5620d8569e5a1": [
+          "data.txt"
+        ],
+        "438be86a360c002423eab65712aadb089066e442766c723724825ca77b476d1b6673d0af4b27a5098ff4fe6c17a5bb424a44473b94d9cbcbc46740b0d85280c6": [
+          "intro.txt"
+        ],
+        "16d48bb3e962ea0bf3ad59d937fbf14af13fdb7c0c8e41e354068c43d84dd33c7e8ec302ce68481e7401955a987110216928d7207d8cef1e5373ad3a16dc43b5": [
+          "history.pdf"
+        ],
+        "95c1ac283ba9e94aa1bd9242a27b8300f2d7c8b3d011daa793a87267fbbf7d09bf453de71e187f9b486dcb7cafba08e0b43c963a1cc5dc88419707e5bac01ece": [
+          "image.jpg"
+        ],
+        "d547cf82108569315d9d7944dd2ba82bdf95902b7a8258a6b16516dd2647d7a6efa7ec456c4ef1287f26b57a9868e7ddd2f34f535a0ea65e6c295a24b330183c": [
+          "media/intro.mpeg"
+        ]
+      }
+    }
+  },
+  "head": "v1",
+  "fixity": {
+    "crc32": {
+      "78753378": [
+        "v1/content/image.jpg"
+      ],
+      "990e1cc1": [
+        "v1/content/ro-crate-metadata.json"
+      ],
+      "c1970dd5": [
+        "v1/content/data.txt"
+      ],
+      "f6357450": [
+        "v1/content/intro.txt"
+      ],
+      "abd758fa": [
+        "v1/content/history.pdf"
+      ],
+      "1e40e8cd": [
+        "v1/content/media/intro.mpeg"
+      ]
+    }
+  }
+}

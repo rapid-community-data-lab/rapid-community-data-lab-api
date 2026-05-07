@@ -1,7 +1,14 @@
+# docker-compose stack for rapid-community-data-lab-api.
+# Shares an external Docker network with the oni-ui frontend so nginx
+# can resolve the backend by Docker DNS (hostname: "api").
+#
+# First-time setup (run once on the host):
+#   docker network create rapid-community-data-lab
+
 networks:
-  ldacapi:
-    name: ldacapi
-    driver: bridge
+  rapid-community-data-lab:
+    external: true
+    name: rapid-community-data-lab
 
 volumes:
   postgres_data:
@@ -12,7 +19,7 @@ services:
     restart: always
     image: postgres:18-alpine
     hostname: db
-    container_name: ldacapi_db
+    container_name: db
     tty: true
     environment:
       POSTGRES_DB: "${DB_NAME}"
@@ -25,19 +32,26 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - ldacapi
+      - rapid-community-data-lab
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   opensearch:
     restart: always
-    image: opensearchproject/opensearch:3.5.0
+    build:
+      context: docker/opensearch
+      dockerfile: Dockerfile
+    image: rapid-community-data-lab-opensearch:local
     hostname: opensearch
-    container_name: ldacapi_opensearch
+    container_name: opensearch
     tty: true
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
       - _JAVA_OPTIONS=${OPENSEARCH_JAVA_OPTIONS} #this fixes Mac M4 bug -XX:UseSVE=0 and WSL2 bug should be empty
-      #- xpack.security.enabled=false # for elasticsearch
       - plugins.security.disabled=true # for opensearch
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=ABCDE1234!
       - DISABLE_INSTALL_DEMO_CONFIG=true
@@ -47,4 +61,41 @@ services:
       - "9200:9200"
       - "9300:9300"
     networks:
-      - ldacapi
+      - rapid-community-data-lab
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  api:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rapid-community-data-lab-api:local
+    hostname: api
+    container_name: api
+    depends_on:
+      db:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    environment:
+      # All connection strings use in-network DNS hostnames.
+      DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
+      OPENSEARCH_URL: "http://opensearch:9200"
+      RAPID_COMMUNITY_DATA_LAB_API_PORT: "8080"
+      TOKEN_ADMIN: "${TOKEN_ADMIN}"
+      OCFL_PATH: "/data/ocfl/data"
+      OCFL_SCRATCH: "/data/ocfl/scratch"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      DB_HOST: db
+      OPENSEARCH_HOST: opensearch
+    volumes:
+      # Persist OCFL data on the host; bind-mount the bundled test corpus for first-run convenience.
+      - ./.ocfl:/data/ocfl
+    ports:
+      - "8080:8080"
+    networks:
+      - rapid-community-data-lab

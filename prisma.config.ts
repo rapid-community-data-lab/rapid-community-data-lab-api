@@ -8,7 +8,7 @@ try {
 } catch (error) {
   if (!env.DATABASE_URL) {
     console.log(error);
-    env.DATABASE_URL = 'postgresql://rapid_community_data_lab_api:rapid_community_data_lab_api@localhost:5432/rapid_community_data_lab_api?schema=public';
+    env.DATABASE_URL = 'postgresql://rapid_community_data_lab_api:bzGFj7D3SUKRASQHPvmhXQ==@localhost:5432/rapid-community-data-lab?schema=public';
   }
 }
 

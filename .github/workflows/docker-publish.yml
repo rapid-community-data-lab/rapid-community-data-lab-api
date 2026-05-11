@@ -75,7 +75,7 @@ jobs:
         with:
           # PAT with `repo` scope for the infra repo. Add as repo secret INFRA_DISPATCH_TOKEN.
           token: ${{ secrets.INFRA_DISPATCH_TOKEN }}
-          repository: ${{ github.repository_owner }}/rapid-community-data-lab
+          repository: ${{ github.repository_owner }}/rapid-community-data-lab-api
           event-type: deploy-dev
           client-payload: |
             {

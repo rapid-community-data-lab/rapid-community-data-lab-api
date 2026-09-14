@@ -1,6 +1,7 @@
 //import config from '../prisma.config.ts';
 import cors from '@fastify/cors';
 import fastifyRoutes from '@fastify/routes';
+import fastifySensible from '@fastify/sensible';
 import { Client } from '@opensearch-project/opensearch';
 import { PrismaPg } from "@prisma/adapter-pg";
 import type { Options } from 'arocapi';
@@ -67,7 +68,7 @@ const appOpt: Options = {
   }
 };
 
-//fastify.register(fastifySensible);
+fastify.register(fastifySensible);
 fastify.register(cors, {
   methods: ['HEAD', 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 });

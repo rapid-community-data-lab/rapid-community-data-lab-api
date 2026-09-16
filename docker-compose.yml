@@ -86,7 +86,8 @@ services:
       DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
       OPENSEARCH_URL: "http://opensearch:9200"
       RAPID_COMMUNITY_DATA_LAB_API_PORT: "8080"
-      TOKEN_ADMIN: "${TOKEN_ADMIN}"
+      # Must match API_AUTH_JWT_SECRET in rapid-cdl-admin/api.
+      API_AUTH_JWT_SECRET: "${API_AUTH_JWT_SECRET}"
       OCFL_PATH: "/data/ocfl/data"
       OCFL_SCRATCH: "/data/ocfl/scratch"
       LOG_LEVEL: "${LOG_LEVEL:-info}"

@@ -1,0 +1,19 @@
+// This model is also defined in rapid-cdl-admin/api/prisma/schema.prisma.
+// Both APIs share the same PostgreSQL database, so lab-api must include it in
+// its Prisma schema to prevent db push from treating the table as unmanaged.
+enum AdminRole {
+  ADMIN
+  SUPER_ADMIN
+}
+
+model AdminUser {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  role      AdminRole @default(ADMIN)
+  enabled   Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("admin_users")
+}

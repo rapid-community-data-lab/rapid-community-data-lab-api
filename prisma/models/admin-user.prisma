@@ -1,0 +1,16 @@
+enum AdminRole {
+  ADMIN
+  SUPER_ADMIN
+}
+
+model AdminUser {
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  password  String
+  role      AdminRole  @default(ADMIN)
+  enabled   Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("admin_users")
+}

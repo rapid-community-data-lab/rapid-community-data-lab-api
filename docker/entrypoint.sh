@@ -27,11 +27,13 @@ wait_for() {
 wait_for "$DB_HOST" "$DB_PORT" "postgres"
 wait_for "$OPENSEARCH_HOST" "$OPENSEARCH_PORT" "opensearch"
 
-# Idempotent schema sync; safe to re-run on every start.
+# The database is shared with rapid-cdl-admin/api. The shared AdminUser model
+# is included in this Prisma schema, so this sync does not remove admin_users.
+# Never use --accept-data-loss here: it could delete tables owned by the
+# admin API when the two services use the same PostgreSQL database.
 echo "[entrypoint] Applying Prisma schema (db push)..."
-npx --yes prisma db push --accept-data-loss
+npx --yes prisma db push
 
 echo "[entrypoint] Starting: $*"
 exec "$@"
-
 

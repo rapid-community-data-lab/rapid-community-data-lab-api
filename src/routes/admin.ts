@@ -1,16 +1,54 @@
-import bearerAuthPlugin from '@fastify/bearer-auth';
 import type { FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import jwt from 'jsonwebtoken';
 import { z } from 'zod/v4';
 //import { getIndexerState, createIndex, deleteIndex } from '../ocfl.ts';
 import { config } from '../configuration.ts';
 import type { Repository } from '../repository.ts';
 
+type AdminRole = 'ADMIN' | 'SUPER_ADMIN';
+
+type AdminToken = jwt.JwtPayload & {
+  id: string | number;
+  email: string;
+  role: AdminRole;
+};
+
+const isAdminRole = (role: unknown): role is AdminRole =>
+  role === 'ADMIN' || role === 'SUPER_ADMIN';
+
+export function verifyAdminToken(authorization: string | undefined): AdminToken | null {
+  if (!config.apiAuthJwtSecret || !authorization?.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authorization.slice('Bearer '.length).trim();
+  if (!token) return null;
+
+  try {
+    const payload = jwt.verify(token, config.apiAuthJwtSecret, {
+      algorithms: ['HS256']
+    });
+
+    if (typeof payload !== 'object' || !payload || !isAdminRole(payload.role)) {
+      return null;
+    }
+
+    return payload as AdminToken;
+  } catch {
+    return null;
+  }
+}
+
 export const admin: FastifyPluginAsync<{ prefix: string; repository: Repository }> = async (fastify, opts) => {
   //console.log(opts);
   const repo = opts.repository;
   const app = fastify.withTypeProvider<ZodTypeProvider>();
-  app.register(bearerAuthPlugin, { keys: [config.tokenAdmin] });
+  app.addHook('preHandler', async (request, reply) => {
+    if (!verifyAdminToken(request.headers.authorization)) {
+      return reply.status(401).send({ message: 'Invalid or missing authentication token.' });
+    }
+  });
 
   app.get('/repository/', async (request, reply) => reply.redirect('../repository', 301));
   app.get('/repository', async (request, reply) => {

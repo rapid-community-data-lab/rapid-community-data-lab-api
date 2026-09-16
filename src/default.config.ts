@@ -9,7 +9,8 @@ export default {
   opensearchUrl: env.OPENSEARCH_URL || 'http://localhost:9200',
   port: parseInt(env.RAPID_COMMUNITY_DATA_LAB_API_PORT || '8080'),
   logLevel: env.LOG_LEVEL || (isDev ? 'debug' : 'info'),
-  tokenAdmin: env.TOKEN_ADMIN || '1234-1234-1234-1234',
+  // Must be the same secret used by rapid-cdl-admin/api to sign login JWTs.
+  apiAuthJwtSecret: env.API_AUTH_JWT_SECRET || '',
   defaultLicense: 'https://creativecommons.org/licenses/by/4.0/',
   defaultMetadataLicense: 'https://creativecommons.org/licenses/by/4.0/',
 

@@ -5,6 +5,7 @@ import type {
   Search_RequestBody,
 } from '@opensearch-project/opensearch/api/index.d.ts';
 import type { ROCrate } from 'ro-crate';
+import { config } from '../configuration.ts';
 import { logger } from '../index.ts';
 import { PromiseQueue, firstStringOrId } from '../utils.ts';
 import type { CrateObject } from './indexer.ts';
@@ -23,8 +24,46 @@ type searchParams = {
   explain?: boolean;
 };
 
+function isTransientPressure(error: any) {
+  const status = error?.meta?.statusCode;
+  const type = error?.meta?.body?.error?.type || error?.meta?.body?.error?.root_cause?.[0]?.type;
+  return status === 429 || type === 'circuit_breaking_exception' || type === 'es_rejected_execution_exception';
+}
+
+async function withBackoff<T>(label: string, run: () => Promise<T>): Promise<T> {
+  const { retryAttempts, retryDelayMs } = config.search;
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await run();
+    } catch (error) {
+      attempt++;
+      if (attempt > retryAttempts || !isTransientPressure(error)) throw error;
+      const delay = retryDelayMs * 2 ** (attempt - 1);
+      logger.warn(`[search] ${label}: search cluster under pressure, retry ${attempt}/${retryAttempts} in ${delay}ms`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
 function isText(entity: Record<string, any>) {
   return entity.encodingFormat?.some((ef: any) => typeof ef === 'string' && ef.startsWith('text/'));
+}
+
+function isFile(entity: Record<string, any>) {
+  return entity['@type']?.includes('File');
+}
+
+function findExtractedTextPath(entity: Record<string, any>) {
+  for (const property of config.extractedTextProperties) {
+    for (const value of entity[property] || []) {
+      const id = value?.['@id'];
+      if (!id) continue;
+      if (value.encodingFormat?.length && !isText(value)) continue;
+      return id as string;
+    }
+  }
+  return undefined;
 }
 
 type MapperParams = {
@@ -45,13 +84,14 @@ const typeMapper: Record<string, (params: MapperParams) => Record<string, any>> 
 const batchedTypeIndexer: Record<string, (params: MapperParams) => Promise<Record<string, any>>> = {
   File: async function ({ entity, record, crate, crateObject }) {
     //todo: check licence if it allows indexing content
-    if (isText(entity)) {
-      const entityId = entity['@id'];
+    const entityId = entity['@id'];
+    const textPath = isText(entity) ? entityId : findExtractedTextPath(entity);
+    if (textPath) {
       try {
-        record._text = (await crateObject?.text(entityId)) || '';
-        logger.info(`[search] Indexing File: ${entityId}`);
+        record._text = (await crateObject?.text(textPath)) || '';
+        logger.info(`[search] Indexing File: ${entityId} (text: ${textPath})`);
       } catch (e) {
-        logger.error(`[search] Cannot read file: ${entityId}`);
+        logger.error(`[search] Cannot read file: ${textPath}`);
         logger.error(e);
         record._error = 'file_not_found';
       }
@@ -169,36 +209,49 @@ export class SearchIndexer extends Indexer {
           record = mapType({ properties, entity, record, crate, crateObject });
         }
         //console.log(record);
+        if (isFile(entity) && findExtractedTextPath(entity)) {
+          deferredEntities.push(entity);
+        }
         operations.push({ update: { _index: elastic.entityIndex, _id } }, { doc: record, doc_as_upsert: true });
       }
     }
     try {
-      const result = await this.client.bulk({
-        body: operations,
-        refresh: true, // setting this to true will update result immediately, but will degrade performance
-      });
-      if (result.body.errors) {
-        logger.error(`[search] Bulk operation result errors:`);
-        const items = result.body.items.filter((item) => item.update.error).map((item) => item.update.error?.reason);
-        logger.error(items.join('\n'));
-      }
-      // index bigger data such as file content in a separate step to manage payload size
-      const pq = new PromiseQueue(4, async (entity) => {
-        const entityTypes: string[] = entity['@type'];
-        const matchedIndexers = entityTypes.map((t) => batchedTypeIndexer[t]).filter((fn) => !!fn);
-        let doc = {};
-        for (const mapper of matchedIndexers) {
-          doc = await mapper({ properties, entity, record: doc, crate, crateObject });
+      const batchSize = elastic.bulkBatchSize * 2;
+      while (operations.length) {
+        const batch = operations.splice(0, batchSize);
+        const result = await withBackoff('bulk', () => this.client.bulk({
+          body: batch,
+          refresh: false,
+        }));
+        if (result.body.errors) {
+          logger.error(`[search] Bulk operation result errors:`);
+          const items = result.body.items.filter((item) => item.update.error).map((item) => item.update.error?.reason);
+          logger.error(items.join('\n'));
         }
-        //console.log(doc);
-        const result = await this.client.update({
-          index: elastic.entityIndex,
-          id: deriveId(entity['@id']),
-          body: { doc, doc_as_upsert: true },
-        });
-        logger.debug(
-          `[search] Batched operation result: ${result.body._id} ${result.body.result} ${result.statusCode}`,
-        );
+      }
+      await this.client.indices.refresh({ index: elastic.entityIndex });
+      // index bigger data such as file content in a separate step to manage payload size
+      const pq = new PromiseQueue(elastic.textIndexConcurrency, async (entity) => {
+        try {
+          const entityTypes: string[] = entity['@type'];
+          const matchedIndexers = entityTypes.map((t) => batchedTypeIndexer[t]).filter((fn) => !!fn);
+          let doc = {};
+          for (const mapper of matchedIndexers) {
+            doc = await mapper({ properties, entity, record: doc, crate, crateObject });
+          }
+          //console.log(doc);
+          const result = await withBackoff(entity['@id'], () => this.client.update({
+            index: elastic.entityIndex,
+            id: deriveId(entity['@id']),
+            body: { doc, doc_as_upsert: true },
+          }));
+          logger.debug(
+            `[search] Batched operation result: ${result.body._id} ${result.body.result} ${result.statusCode}`,
+          );
+        } catch (error) {
+          logger.error(`[search] Failed to index content of ${entity['@id']}`);
+          logger.error(error);
+        }
       });
       for (const entity of deferredEntities) {
         await pq.enqueue(entity);

@@ -14,6 +14,11 @@ export default {
   defaultLicense: 'https://creativecommons.org/licenses/by/4.0/',
   defaultMetadataLicense: 'https://creativecommons.org/licenses/by/4.0/',
 
+  extractedTextProperties: [
+    'ds:extractedText',
+    'https://docu-search.internal/terms#extractedText'
+  ],
+
   indexType: {
     RepositoryCollection: 'https://w3id.org/ldac/profile#Collection',
     RepositoryObject: 'https://w3id.org/ldac/profile#Object',
@@ -46,9 +51,9 @@ export default {
         }
       },
       mappings: {
-        // _source: {
-        //   excludes: ['_text']
-        // },
+        _source: {
+          excludes: ['_text']
+        },
         // _source: { enabled: false },
         dynamic: true,
         date_detection: false,
@@ -96,6 +101,10 @@ export default {
       '@type': { terms: { field: '@type' } },
       inLanguage: { terms: { field: 'inLanguage' } }
     },
-    entityIndex: env.ENTITY_INDEX || 'entities'
+    entityIndex: env.ENTITY_INDEX || 'entities',
+    textIndexConcurrency: parseInt(env.TEXT_INDEX_CONCURRENCY || '2'),
+    bulkBatchSize: parseInt(env.BULK_BATCH_SIZE || '250'),
+    retryAttempts: parseInt(env.INDEX_RETRY_ATTEMPTS || '6'),
+    retryDelayMs: parseInt(env.INDEX_RETRY_DELAY_MS || '2000')
   }
 }

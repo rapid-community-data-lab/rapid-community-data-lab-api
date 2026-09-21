@@ -11,6 +11,7 @@ import { Readable } from 'node:stream';
 import rapidCommunityDataLabApi, { fileHandler } from './app.ts';
 import { config } from './configuration.ts';
 import { PrismaClient } from './generated/prisma/client.ts';
+import { FullTextQueryBuilder } from './indexer/query_builder.ts';
 
 export const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: config.databaseUrl })
@@ -33,6 +34,7 @@ const appOpt: Options = {
   prisma,
   opensearch,
   disableCors: true,
+  queryBuilderClass: FullTextQueryBuilder,
   queryBuilderOptions: { aggregations: config.search.aggregations },
   accessTransformer: AllPublicAccessTransformer,
   fileAccessTransformer: AllPublicFileAccessTransformer,

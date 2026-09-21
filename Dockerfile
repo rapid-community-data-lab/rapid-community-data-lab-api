@@ -22,6 +22,7 @@ FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV RAPID_COMMUNITY_DATA_LAB_API_PORT=8080
+ENV NODE_OPTIONS="--max-old-space-size=768"
 
 # Tini gives us a proper PID 1 with signal handling.
 RUN apk add --no-cache tini

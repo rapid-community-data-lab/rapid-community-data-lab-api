@@ -50,7 +50,7 @@ services:
     tty: true
     environment:
       - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - OPENSEARCH_JAVA_OPTS=${OPENSEARCH_HEAP:--Xms2g -Xmx2g}
       - _JAVA_OPTIONS=${OPENSEARCH_JAVA_OPTIONS} #this fixes Mac M4 bug -XX:UseSVE=0 and WSL2 bug should be empty
       - plugins.security.disabled=true # for opensearch
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=ABCDE1234!

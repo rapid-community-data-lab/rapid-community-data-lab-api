@@ -19,7 +19,6 @@ alternative Oni architectures.
 
 The stack separates durable repository data from the services that expose and
 index it:
-
 ```text
                          public HTTPS
                               │
@@ -27,13 +26,11 @@ index it:
                     ┌─────────┴─────────┐
                     │                   │
              Oni discovery UI      Admin UI
-                    │                   │
-              /api │             /admin-api │
+              /api  │        /admin-api │
                     ▼                   ▼
              LDaCA/RO-Crate API   Admin API
                     │       │           │
                     │       └───────────┘ shared JWT secret
-                    │
           ┌─────────┼──────────┐
           ▼         ▼          ▼
         OCFL     PostgreSQL  OpenSearch

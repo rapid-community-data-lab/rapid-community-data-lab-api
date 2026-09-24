@@ -431,11 +431,11 @@ indexing request is sent to the repository API at `/admin/index/`.
 
 ### 6.1 Basic checks
 
-For the production deployment, use the public HTTPS host:
+For the production deployment, first check the public HTTPS endpoints:
 
 ```bash
 curl -s https://data.rapid-cdl.edu.au/api/version
-curl -s https://admin.rapid-cdl.edu.au/admin-api/health
+curl -s https://admin.rapid-cdl.edu.au/api/version
 curl -s -L -o /dev/null \
   -w '%{http_code} %{url_effective}\n' \
   https://admin.rapid-cdl.edu.au/
@@ -443,6 +443,42 @@ curl -s -L -o /dev/null \
 
 The browser-facing root URL should redirect unauthenticated users to
 `https://admin.rapid-cdl.edu.au/login`.
+
+The Kubernetes workloads run in the `rcdl` namespace. Use `k9s -n rcdl` for
+interactive cluster monitoring. Use `kubectl` for repeatable checks and for
+collecting details when troubleshooting:
+
+```bash
+# List workloads, services, and pod placement
+kubectl get pods -n rcdl -o wide
+
+# Check rollout
+kubectl rollout status deployment/rapid-community-data-lab-api -n rcdl
+kubectl rollout status deployment/rapid-cdl-admin-api -n rcdl
+
+# View recent application logs
+kubectl logs -n rcdl deployment/rapid-community-data-lab-api \
+  -c api --tail=100
+kubectl logs -n rcdl deployment/rapid-cdl-admin-api \
+  -c admin-api --tail=100
+
+# Follow API logs while reproducing a problem
+kubectl logs -n rcdl deployment/rapid-community-data-lab-api \
+  -c api --follow
+
+# View logs from the previous container after a restart
+kubectl logs -n rcdl deployment/rapid-community-data-lab-api \
+  -c api --previous --tail=100
+
+# Inspect a specific pod and its recent events
+kubectl describe pod -n rcdl <pod-name>
+```
+
+The main workloads are `rapid-community-data-lab-api`,
+`rapid-cdl-admin-api`, `rapid-cdl-admin`, and `oni-ui`. A pod that is not
+Ready, repeated restarts, failed probes, or image-pull errors should be
+investigated with `kubectl describe pod` and the relevant `kubectl logs`
+command.
 
 ### 6.2 Common problems
 

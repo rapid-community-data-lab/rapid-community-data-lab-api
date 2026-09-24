@@ -165,7 +165,7 @@ From `rapid-community-data-lab-api`:
 cp .env.example .env
 docker network create rapid-community-data-lab
 docker compose up -d
-curl -s http://localhost:8080/version
+curl -s https://data.rapid-cdl.edu.au/api/version
 ```
 
 Set a strong `API_AUTH_JWT_SECRET`; use the same value for the admin API.
@@ -204,7 +204,7 @@ using the nginx proxy. For running with Docker (production-like) container:
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d --build
-curl -s http://localhost:8081/api/version
+curl -s https://data.rapid-cdl.edu.au/api/version
 ```
 
 The container mounts `configuration.json` read-only and uses
@@ -221,9 +221,7 @@ cd rapid-cdl-admin/api
 docker compose up -d --build
 cd ..
 docker compose --env-file .env -f docker/docker-compose.yml up -d --build
-curl -s http://localhost:8082/api/version
-curl -s http://localhost:8083/health
-curl -s http://localhost:8082/admin-api/health
+curl -s https://admin.rapid-cdl.edu.au/api/version
 ```
 
 The local admin API is on port 8083 and the admin UI/Traefik edge is on 8082.
@@ -238,14 +236,14 @@ obtaining a JWT from `POST /login`:
 ```bash
 export ADMIN_JWT='<token returned by /login>'
 curl -L -X POST -H "Authorization: Bearer ${ADMIN_JWT}" \
-  http://localhost:8080/admin/index/
+  https://data.rapid-cdl.edu.au/api/admin/index/
 ```
 
 Indexing is asynchronous:
 
 ```bash
 docker compose logs -f api | grep -E 'Indexing|level":50'
-curl -s 'http://localhost:8080/entities?limit=1'
+curl -s 'https://data.rapid-cdl.edu.au/api/entities?limit=1'
 ```
 
 Do not treat `202 Accepted` alone as completion; wait for logs and verify a
@@ -346,27 +344,30 @@ customised:
 
 ### 3.6 Monitoring
 
-The documented checks are:
+For the deployed admin application, use the public HTTPS host. The
+repository API and admin API are routed through this host; port `8083` is not
+accessed directly from outside the cluster:
 
 ```bash
-# API
-curl -s http://localhost:8080/version
+# Repository API through the production ingress
+curl -s https://data.rapid-cdl.edu.au/api/version
 
-# Admin stack through Traefik
-curl -s http://localhost:8082/api/version
-curl -s http://localhost:8083/health
-curl -s http://localhost:8082/admin-api/health
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8082/
+# Admin API through the production ingress
+curl -s https://admin.rapid-cdl.edu.au/api/version
 
-# Oni UI container
-curl -f http://container-ip/
+# Admin UI; follow the unauthenticated redirect to /login
+curl -sS -L -o /dev/null \
+  -w '%{http_code} %{url_effective}\n' \
+  https://admin.rapid-cdl.edu.au/
 ```
+
+The final command should finish at `https://admin.rapid-cdl.edu.au/login`.
 
 Indexing runs asynchronously. Follow progress and check the entity count with:
 
 ```bash
 docker compose logs -f api | grep -E 'Indexing|level":50'
-curl -s 'http://localhost:8080/entities?limit=1'
+curl -s 'https://data.rapid-cdl.edu.au/api/entities?limit=1'
 ```
 
 ## 4. Upgrading components
@@ -408,7 +409,7 @@ count with:
 
 ```bash
 docker compose logs -f api | grep -E 'Indexing|level":50'
-curl -s 'http://localhost:8080/entities?limit=1'
+curl -s 'https://data.rapid-cdl.edu.au/api/entities?limit=1'
 ```
 
 ### 5.3 Deleting data
@@ -430,29 +431,25 @@ indexing request is sent to the repository API at `/admin/index/`.
 
 ### 6.1 Basic checks
 
-The documented checks are:
+For the production deployment, use the public HTTPS host:
 
 ```bash
-# API
-curl -s http://localhost:8080/version
-
-# Admin stack through Traefik
-curl -s http://localhost:8082/api/version
-curl -s http://localhost:8083/health
-curl -s http://localhost:8082/admin-api/health
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8082/
-
-# Oni UI container
-curl -f http://container-ip/
+curl -s https://data.rapid-cdl.edu.au/api/version
+curl -s https://admin.rapid-cdl.edu.au/admin-api/health
+curl -s -L -o /dev/null \
+  -w '%{http_code} %{url_effective}\n' \
+  https://admin.rapid-cdl.edu.au/
 ```
+
+The browser-facing root URL should redirect unauthenticated users to
+`https://admin.rapid-cdl.edu.au/login`.
 
 ### 6.2 Common problems
 
 For indexing, use this check:
 
 ```bash
-docker compose logs -f api | grep -E 'Indexing|level":50'
-curl -s 'http://localhost:8080/entities?limit=1'
+curl -s 'https://data.rapid-cdl.edu.au/api/entities?limit=1'
 ```
 
 `Indexing arcp://...` lines should appear for each bundled crate.

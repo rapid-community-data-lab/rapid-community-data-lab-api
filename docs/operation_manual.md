@@ -424,7 +424,23 @@ run against a shared or remote environment.
 
 The admin UI calls authentication through the same-origin `/admin-api` path.
 Local Traefik and production Kubernetes route this path to the admin API. The
-indexing request is sent to the repository API at `/admin/index/`.
+indexing request is sent to the repository API at `/admin/index/`. For a
+specific crate, use `POST /admin/index/:crateId`; through the production
+`/api` route, this becomes `POST /api/admin/index/:crateId`.
+
+The indexing flow is:
+
+- **OCFL import:** OCFL is the system of record. The crate is streamed into
+  `/data/ocfl/staging`, then `ocfl-fs` writes it into the OCFL root with
+  `object.import()`.
+- **Index request:** `POST /admin/index/:crateId` returns `202` and queues the
+  work in a `PromiseQueue` with concurrency four.
+- **Two indexers:** the crate is parsed once, then sent to:
+  - `StructuralIndexer` → PostgreSQL, using Prisma upserts for `entity` and
+    `file` records;
+  - `SearchIndexer` → OpenSearch, using bulk indexing for entity records.
+- **Serving data:** PostgreSQL serves `/entities` and `/entity/:id`, OpenSearch
+  serves `/search`, and OCFL streams the deposited bytes and files.
 
 
 ## 6. Monitoring and troubleshooting

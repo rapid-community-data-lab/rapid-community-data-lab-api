@@ -28,7 +28,7 @@ index it:
              Oni discovery UI      Admin UI
               /api  │        /admin-api │
                     ▼                   ▼
-             LDaCA/RO-Crate API   Admin API
+      rapid-cdl-api/RO-Crate API   Admin API
                     │       │           │
                     │       └───────────┘ shared JWT secret
           ┌─────────┼──────────┐
@@ -84,11 +84,11 @@ The local stack bind-mounts `rapid-community-data-lab-api/.ocfl`. Kubernetes
 mounts the `ocfl-data` ReadWriteOnce PVC at `/data/ocfl`. Scratch space is
 not a backup.
 
-#### LDaCA-API / RAPID Community Data Lab API
+#### RAPID Community Data Lab API (rapid-cdl-api)
 
 The deployed API is the RAPID implementation of Arocapi, an RO-Crate API built
 with Fastify, TypeScript, Prisma, PostgreSQL, and OpenSearch. In this manual,
-“LDaCA-API” refers to this API layer and its standard RO-Crate routes.
+“rapid-cdl-api” refers to this API layer and its standard RO-Crate routes.
 
 It provides entity and file retrieval, RO-Crate metadata retrieval, listing,
 and OpenSearch-backed search. It serves files from OCFL, uses PostgreSQL for

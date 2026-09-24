@@ -374,12 +374,11 @@ curl -s 'http://localhost:8080/entities?limit=1'
 The Oni UI image supports these tags:
 
 - `latest`: latest build from the main branch;
-- `paradisec`: latest build from the paradisec branch;
 - `vX.Y.Z`: specific version releases;
 - `main`: latest build from main;
 - `sha-xxxxxx`: specific commit SHA.
 
-After pushing to the `main` or `paradisec` branch, check GitHub Actions, Docker
+After pushing to the `main` branch, check GitHub Actions, Docker
 Hub, and GitHub Container Registry to confirm that the image was published.
 
 Build and push the RAPID API image from its `Dockerfile` in the GitLab CI

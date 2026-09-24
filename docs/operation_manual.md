@@ -443,9 +443,13 @@ The indexing flow is:
   serves `/search`, and OCFL streams the deposited bytes and files.
 
 
-## 6. Monitoring and troubleshooting
+## 6. Backup and recovery
 
-### 6.1 Basic checks
+CloudNativePG is used to natively online/hot backup of PostgreSQL clusters through continuous physical backup and WAL archiving. The database is always up (no downtime required) and it recovers at any point in time from the first available base backup in the system.
+
+## 7. Monitoring and troubleshooting
+
+### 7.1 Basic checks
 
 For the production deployment, first check the public HTTPS endpoints:
 
@@ -496,7 +500,7 @@ Ready, repeated restarts, failed probes, or image-pull errors should be
 investigated with `kubectl describe pod` and the relevant `kubectl logs`
 command.
 
-### 6.2 Common problems
+### 7.2 Common problems
 
 For indexing, use this check:
 
@@ -506,7 +510,7 @@ curl -s 'https://data.rapid-cdl.edu.au/api/entities?limit=1'
 
 `Indexing arcp://...` lines should appear for each bundled crate.
 
-### 6.3 Local clean-slate reset
+### 7.3 Local clean-slate reset
 
 The clean-slate procedure is destructive and local only. `docker compose down
 -v` removes the `postgres_data` and `opensearch_data` volumes, wiping the

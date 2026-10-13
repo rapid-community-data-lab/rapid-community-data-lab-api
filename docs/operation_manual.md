@@ -140,7 +140,7 @@ lists objects or starts/deletes indexing.
 
 The admin API and repository API must use exactly the same
 `API_AUTH_JWT_SECRET`. The repository API accepts only JWTs with the
-`ADMIN` or `SUPER_ADMIN` role on `/admin/*`.
+`INDEX_ADMIN` or `ROLES_ADMIN` role on `/admin/*`.
 
 ## 2. Setting up a development environment
 

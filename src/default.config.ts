@@ -9,9 +9,15 @@ export default {
   opensearchUrl: env.OPENSEARCH_URL || 'http://localhost:9200',
   port: parseInt(env.RAPID_COMMUNITY_DATA_LAB_API_PORT || '8080'),
   logLevel: env.LOG_LEVEL || (isDev ? 'debug' : 'info'),
-  tokenAdmin: env.TOKEN_ADMIN || '1234-1234-1234-1234',
+  // Must be the same secret used by rapid-cdl-admin/api to sign login JWTs.
+  apiAuthJwtSecret: env.API_AUTH_JWT_SECRET || '',
   defaultLicense: 'https://creativecommons.org/licenses/by/4.0/',
   defaultMetadataLicense: 'https://creativecommons.org/licenses/by/4.0/',
+
+  extractedTextProperties: [
+    'ds:extractedText',
+    'https://docu-search.internal/terms#extractedText'
+  ],
 
   indexType: {
     RepositoryCollection: 'https://w3id.org/ldac/profile#Collection',
@@ -45,9 +51,9 @@ export default {
         }
       },
       mappings: {
-        // _source: {
-        //   excludes: ['_text']
-        // },
+        _source: {
+          excludes: ['_text']
+        },
         // _source: { enabled: false },
         dynamic: true,
         date_detection: false,
@@ -95,6 +101,10 @@ export default {
       '@type': { terms: { field: '@type' } },
       inLanguage: { terms: { field: 'inLanguage' } }
     },
-    entityIndex: env.ENTITY_INDEX || 'entities'
+    entityIndex: env.ENTITY_INDEX || 'entities',
+    textIndexConcurrency: parseInt(env.TEXT_INDEX_CONCURRENCY || '2'),
+    bulkBatchSize: parseInt(env.BULK_BATCH_SIZE || '250'),
+    retryAttempts: parseInt(env.INDEX_RETRY_ATTEMPTS || '6'),
+    retryDelayMs: parseInt(env.INDEX_RETRY_DELAY_MS || '2000')
   }
 }

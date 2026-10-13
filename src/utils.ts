@@ -27,11 +27,20 @@ export class PromiseQueue {
       if (!this.sharedFunction) throw new Error('No shared function provided for non-function tasks');
       p = this.sharedFunction(valueOrTask);
     }
-    this.queue[slot] = p.then(v => {
+    const release = () => {
       this.queue[slot] = null;
       this.#returnSlot?.(slot);
-      return v;
-    });
+    };
+    this.queue[slot] = p.then(
+      v => {
+        release();
+        return v;
+      },
+      e => {
+        release();
+        return e;
+      },
+    );
     return { value: p };
   }
   async done() {

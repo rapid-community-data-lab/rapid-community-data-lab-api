@@ -18,8 +18,8 @@ where the backend URL becomes a runtime env var on the nginx pod.
 ### 1.1. Prerequisites
 
 - Docker 24+ and Docker Compose v2
-- A `.env` file in this directory (a working sample is committed; review the
-  `DB_*`, `TOKEN_ADMIN`, and `OPENSEARCH_JAVA_OPTIONS` values).
+- A `.env` file in this directory (review the `DB_*`,
+  `API_AUTH_JWT_SECRET`, and `OPENSEARCH_JAVA_OPTIONS` values).
 
 ### 1.2. Create the shared Docker network (one-time)
 
@@ -61,11 +61,13 @@ curl -s http://localhost:8080/version
 
 ### 1.5. Index the bundled test data
 
-Export `TOKEN_ADMIN` from `.env` first (the value is quoted in the file):
+Log in through rapid-cdl-admin first and use the returned JWT as the bearer
+token. The admin API and this API must be configured with the same
+`API_AUTH_JWT_SECRET`.
 
 ```bash
-export TOKEN_ADMIN=$(grep ^TOKEN_ADMIN .env | cut -d= -f2- | tr -d '"')
-curl -L -X POST -H "Authorization: Bearer ${TOKEN_ADMIN}" \
+export ADMIN_JWT='<token returned by /login>'
+curl -L -X POST -H "Authorization: Bearer ${ADMIN_JWT}" \
   http://localhost:8080/admin/index/
 ```
 
@@ -117,7 +119,7 @@ directly (no `.env` file needed inside the container).
 | `RAPID_COMMUNITY_DATA_LAB_API_PORT`   | `8080`                                    | Listen port. |
 | `DATABASE_URL`                        | (required)                                | Postgres connection string. |
 | `OPENSEARCH_URL`                      | `http://localhost:9200`                   | OpenSearch endpoint. |
-| `TOKEN_ADMIN`                         | `1234-1234-1234-1234`                     | Bearer token for `/admin/*`. |
+| `API_AUTH_JWT_SECRET`                 | (required)                                | Must match the admin API JWT signing secret. |
 | `LOG_LEVEL`                           | `info` (`debug` in dev)                   | Pino log level. |
 | `OCFL_PATH`                           | `./.ocfl/data`                            | OCFL repository root. |
 | `OCFL_SCRATCH`                        | `./.ocfl/scratch`                         | OCFL working dir. |
@@ -133,7 +135,7 @@ deploying to K3s is straightforward:
 - Build/push the API image from `Dockerfile` in your GitLab CI pipeline.
 - Create a `Deployment` exposing port `8080` and a matching `Service` named
   e.g. `rapid-community-data-lab-api`.
-- Inject `DATABASE_URL`, `OPENSEARCH_URL`, `TOKEN_ADMIN` etc. as `Secret` /
+- Inject `DATABASE_URL`, `OPENSEARCH_URL`, `API_AUTH_JWT_SECRET` etc. as `Secret` /
   `ConfigMap` env vars on the pod.
 - In the oni-ui Deployment, set `BACKEND_URL` to the in-cluster service URL,
   for example:

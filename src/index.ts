@@ -12,6 +12,7 @@ import rapidCommunityDataLabApi, { fileHandler } from './app.ts';
 import { config } from './configuration.ts';
 import { PrismaClient } from './generated/prisma/client.ts';
 import { FullTextQueryBuilder } from './indexer/query_builder.ts';
+import { registerSnippetSearch, withSnippets } from './indexer/snippets.ts';
 
 export const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: config.databaseUrl }),
@@ -126,7 +127,8 @@ fastify.addHook('preHandler', async (request, reply) => {
   return reply.code(200).send(json);
 });
 
-fastify.register(arocapi, appOpt);
+registerSnippetSearch(fastify);
+fastify.register(arocapi, { ...appOpt, opensearch: withSnippets(opensearch) });
 fastify.register(rapidCommunityDataLabApi, appOpt);
 
 function buildMinimalROCrateFromOS(id: string, src: Record<string, unknown>) {

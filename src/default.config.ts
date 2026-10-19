@@ -89,7 +89,7 @@ export default {
           datePublished: { type: 'date_range' },
           dateCreated: { type: 'date_range' },
           temporalCoverage: { type: 'date_range' },
-          _text: { type: 'text' }
+          _text: { type: 'text', store: true, term_vector: 'with_positions_offsets' }
           //communicationMode: { type: 'keyword' },
           // createdAt: { type: 'date' },
           // updatedAt: { type: 'date' },

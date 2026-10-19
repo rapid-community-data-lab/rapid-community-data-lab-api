@@ -6,7 +6,7 @@ import { z } from 'zod/v4';
 import { config } from '../configuration.ts';
 import type { Repository } from '../repository.ts';
 
-type AdminRole = 'INDEX_ADMIN' | 'ROLES_ADMIN';
+type AdminRole = 'ADMIN' | 'SUPER_ADMIN';
 
 type AdminToken = jwt.JwtPayload & {
   id: string | number;
@@ -15,7 +15,7 @@ type AdminToken = jwt.JwtPayload & {
 };
 
 const isAdminRole = (role: unknown): role is AdminRole =>
-  role === 'INDEX_ADMIN' || role === 'ROLES_ADMIN';
+  role === 'ADMIN' || role === 'SUPER_ADMIN';
 
 export function verifyAdminToken(authorization: string | undefined): AdminToken | null {
   if (!config.apiAuthJwtSecret || !authorization?.startsWith('Bearer ')) {

@@ -14,9 +14,17 @@ import { PrismaClient } from './generated/prisma/client.ts';
 import { FullTextQueryBuilder } from './indexer/query_builder.ts';
 
 export const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: config.databaseUrl })
+  adapter: new PrismaPg({ connectionString: config.databaseUrl }),
+  omit: { entity: { meta: true } },
 });
 const opensearch = new Client({ node: config.opensearchUrl });
+
+async function loadRoCrateJson(id: string): Promise<string | false> {
+  const row = await prisma.entity.findUnique({ where: { id }, select: { meta: true } });
+  const rocrate = (row?.meta as { rocrate?: unknown } | null | undefined)?.rocrate;
+  if (!rocrate) return false;
+  return JSON.stringify(rocrate, null, 2);
+}
 
 const fastify = Fastify({
   //logger: { level: 'debug' },
@@ -53,7 +61,8 @@ const appOpt: Options = {
   // Required: RO-Crate handler for serving RO-Crate metadata
   roCrateHandler: {
     get: async (entity) => {
-      const jsonString = JSON.stringify(entity.meta.rocrate, null, 2);
+      const jsonString = await loadRoCrateJson(entity.id);
+      if (!jsonString) return false;
       return {
         type: 'stream' as 'stream',
         stream: Readable.from([jsonString]),
@@ -63,10 +72,14 @@ const appOpt: Options = {
         },
       };
     },
-    head: async (entity) => ({
-      contentType: 'application/ld+json',
-      contentLength: Buffer.byteLength(JSON.stringify(entity.meta.rocrate)),
-    }),
+    head: async (entity) => {
+      const jsonString = await loadRoCrateJson(entity.id);
+      if (!jsonString) return false;
+      return {
+        contentType: 'application/ld+json',
+        contentLength: Buffer.byteLength(jsonString),
+      };
+    },
   }
 };
 

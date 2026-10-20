@@ -1,13 +1,16 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Client } from '@opensearch-project/opensearch';
 import type { FastifyInstance, RouteHandlerMethod } from 'fastify';
 import { hasSearchTerms } from './query_builder.ts';
 
 export const SNIPPET_FIELD = '_text';
+export const SNIPPET_MAX_WORDS = 40;
+
+const MARK_OPEN = '<mark>';
+const MARK_CLOSE = '</mark>';
 
 export const snippetHighlight = {
-  pre_tags: ['<mark>'],
-  post_tags: ['</mark>'],
+  pre_tags: [MARK_OPEN],
+  post_tags: [MARK_CLOSE],
   encoder: 'html',
   fields: {
     [SNIPPET_FIELD]: {
@@ -19,57 +22,116 @@ export const snippetHighlight = {
   },
 };
 
-const RESULT_SOURCE_FIELDS = ['id', 'isBasedOn'];
+const RESULT_SOURCE_FIELDS = ['id'];
 
-type SearchSource = { id?: string; isBasedOn?: unknown[] };
 type SearchBody = { searchType?: string; query?: string };
 type SearchEntity = { id: string; searchExtra?: { highlight?: Record<string, string[]> } };
 type SearchResult = { total: number; entities: SearchEntity[] };
-type SearchResponse = { body?: { hits?: { hits?: { _source?: SearchSource }[] } } };
-
-const searchSources = new AsyncLocalStorage<Map<string, SearchSource>>();
+type Span = { start: number; end: number };
 
 export function withSnippets(client: Client): Client {
-  const search = async (params: Parameters<Client['search']>[0], ...rest: unknown[]) => {
-    const body = { ...params?.body, highlight: snippetHighlight, _source: RESULT_SOURCE_FIELDS };
-    const response = await (client.search as (...args: unknown[]) => Promise<SearchResponse>)(
-      { ...params, body },
+  const search = (params: Parameters<Client['search']>[0], ...rest: unknown[]) =>
+    (client.search as (...args: unknown[]) => unknown)(
+      { ...params, body: { ...params?.body, highlight: snippetHighlight, _source: RESULT_SOURCE_FIELDS } },
       ...rest,
     );
-    const sources = searchSources.getStore();
-    for (const hit of response?.body?.hits?.hits ?? []) {
-      if (sources && hit._source?.id) {
-        sources.set(hit._source.id, hit._source);
-      }
-    }
-    return response;
-  };
 
   return new Proxy(client, {
     get: (target, property, receiver) => (property === 'search' ? search : Reflect.get(target, property, receiver)),
   });
 }
 
-const toUrlList = (values: unknown[] = []) =>
-  values
-    .map((value) => {
-      if (typeof value === 'string') return value;
-      const item = value as { '@value'?: unknown; '@id'?: unknown } | null;
-      return item?.['@value'] ?? item?.['@id'];
+const parseMarks = (fragment: string) => {
+  const marks: Span[] = [];
+  let text = '';
+  let openedAt = -1;
+
+  for (const part of fragment.split(/(<mark>|<\/mark>)/)) {
+    if (part === MARK_OPEN) {
+      openedAt = text.length;
+    } else if (part === MARK_CLOSE) {
+      if (openedAt >= 0 && text.length > openedAt) marks.push({ start: openedAt, end: text.length });
+      openedAt = -1;
+    } else {
+      text += part;
+    }
+  }
+
+  return { text, marks };
+};
+
+export function condenseSnippet(fragment: string, maxWords = SNIPPET_MAX_WORDS) {
+  const { text, marks } = parseMarks(fragment);
+  const words: Span[] = [...text.matchAll(/\S+/g)].map((match) => ({
+    start: match.index,
+    end: match.index + match[0].length,
+  }));
+  if (!words.length) return '';
+
+  const wordsInMark = (mark: Span) => words.filter((word) => word.start < mark.end && word.end > mark.start).length;
+  const mark = marks.reduce<Span | undefined>(
+    (best, candidate) => (wordsInMark(candidate) > (best ? wordsInMark(best) : 0) ? candidate : best),
+    undefined,
+  );
+
+  let first = 0;
+  let markFirst = -1;
+  let markLast = -1;
+  if (mark) {
+    markFirst = words.findIndex((word) => word.end > mark.start);
+    markLast = words.findLastIndex((word) => word.start < mark.end);
+    const before = Math.max(0, Math.floor((maxWords - (markLast - markFirst + 1)) / 2));
+    first = Math.max(0, Math.min(markFirst - before, words.length - maxWords));
+  }
+  const last = Math.min(words.length, first + maxWords) - 1;
+
+  const markedFirst = Math.max(markFirst, first);
+  const markedLast = Math.min(markLast, last);
+  const opensAt = mark ? Math.max(mark.start, words[markedFirst].start) : -1;
+  const closesAt = mark ? Math.min(mark.end, words[markedLast].end) : -1;
+
+  return words
+    .slice(first, last + 1)
+    .map((word, offset) => {
+      const index = first + offset;
+      let value = text.slice(word.start, word.end);
+      if (mark && index === markedLast) {
+        const at = closesAt - word.start;
+        value = value.slice(0, at) + MARK_CLOSE + value.slice(at);
+      }
+      if (mark && index === markedFirst) {
+        const at = opensAt - word.start;
+        value = value.slice(0, at) + MARK_OPEN + value.slice(at);
+      }
+      return value;
     })
-    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+    .join(' ');
+}
+
+const condenseHighlight = (entity: SearchEntity): SearchEntity => {
+  const fragments = entity.searchExtra?.highlight?.[SNIPPET_FIELD];
+  if (!fragments?.length) return entity;
+
+  return {
+    ...entity,
+    searchExtra: {
+      ...entity.searchExtra,
+      highlight: {
+        ...entity.searchExtra?.highlight,
+        [SNIPPET_FIELD]: fragments.map((fragment) => condenseSnippet(fragment)).filter(Boolean),
+      },
+    },
+  };
+};
 
 const isSearchResult = (result: unknown): result is SearchResult =>
   !!result && typeof result === 'object' && Array.isArray((result as SearchResult).entities);
 
-export function applySnippetRules(result: SearchResult, body: SearchBody, sources: Map<string, SearchSource>) {
+export function applySnippetRules(result: SearchResult, body: SearchBody) {
   const snippetRequired = (body?.searchType ?? 'basic') === 'basic' && hasSearchTerms(body?.query ?? '');
   const entities = result.entities
     .filter((entity) => !snippetRequired || !!entity.searchExtra?.highlight?.[SNIPPET_FIELD]?.length)
-    .map((entity) => {
-      const isBasedOn = toUrlList(sources.get(entity.id)?.isBasedOn);
-      return isBasedOn.length ? { ...entity, isBasedOn } : entity;
-    });
+    .map(condenseHighlight);
 
   return { ...result, total: Math.max(0, result.total - (result.entities.length - entities.length)), entities };
 }
@@ -79,12 +141,9 @@ export function registerSnippetSearch(fastify: FastifyInstance) {
     if (route.url !== '/search' || route.method !== 'POST') return;
 
     const handler = route.handler as RouteHandlerMethod;
-    route.handler = function (request, reply) {
-      const sources = new Map<string, SearchSource>();
-      return searchSources.run(sources, async () => {
-        const result = await handler.call(this, request, reply);
-        return isSearchResult(result) ? applySnippetRules(result, request.body as SearchBody, sources) : result;
-      });
+    route.handler = async function (request, reply) {
+      const result = await handler.call(this, request, reply);
+      return isSearchResult(result) ? applySnippetRules(result, request.body as SearchBody) : result;
     };
   });
 }

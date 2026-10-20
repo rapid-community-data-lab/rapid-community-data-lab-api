@@ -2,7 +2,22 @@ import type { Client } from '@opensearch-project/opensearch';
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { FullTextQueryBuilder } from './query_builder.ts';
-import { applySnippetRules, registerSnippetSearch, snippetHighlight, withSnippets } from './snippets.ts';
+import {
+  applySnippetRules,
+  condenseSnippet,
+  registerSnippetSearch,
+  SNIPPET_MAX_WORDS,
+  snippetHighlight,
+  withSnippets,
+} from './snippets.ts';
+
+const wordCount = (snippet: string) =>
+  snippet
+    .replace(/<\/?mark>/g, '')
+    .split(/\s+/)
+    .filter(Boolean).length;
+const markCount = (snippet: string) => (snippet.match(/<mark>/g) ?? []).length;
+const filler = (prefix: string, count: number) => Array.from({ length: count }, (_, i) => `${prefix}${i}`).join(' ');
 
 const builder = new FullTextQueryBuilder();
 
@@ -36,8 +51,39 @@ describe('FullTextQueryBuilder', () => {
   });
 });
 
+describe('condenseSnippet', () => {
+  it('keeps at most 40 words centred on a single highlighted keyword', () => {
+    const fragment = `${filler('a', 60)} Mr <mark>Bonner</mark>, at my suggestion ${filler('b', 60)} <mark>Bonner</mark> end`;
+    const snippet = condenseSnippet(fragment);
+    expect(SNIPPET_MAX_WORDS).toBe(40);
+    expect(wordCount(snippet)).toBe(40);
+    expect(markCount(snippet)).toBe(1);
+    expect(snippet).toContain('Mr <mark>Bonner</mark>, at my suggestion');
+    expect(snippet.startsWith('a42 ')).toBe(true);
+  });
+
+  it('prefers the longest highlight and joins line-broken phrases', () => {
+    const snippet = condenseSnippet(
+      'Mr <mark>Bonner</mark> met Mr <mark>Neville\nBonner</mark> AO and Mr <mark>Bonner</mark>',
+    );
+    expect(snippet).toBe('Mr Bonner met Mr <mark>Neville Bonner</mark> AO and Mr Bonner');
+  });
+
+  it('keeps html entities intact and handles highlights at the edges', () => {
+    expect(condenseSnippet('<mark>Drs</mark> S &amp; P Kershaw')).toBe('<mark>Drs</mark> S &amp; P Kershaw');
+    const tail = condenseSnippet(`${filler('w', 80)} (<mark>Bonner</mark>)`);
+    expect(wordCount(tail)).toBe(40);
+    expect(tail.endsWith('(<mark>Bonner</mark>)')).toBe(true);
+  });
+
+  it('truncates fragments without a highlight and ignores empty ones', () => {
+    expect(wordCount(condenseSnippet(filler('w', 55)))).toBe(40);
+    expect(condenseSnippet(' \n ')).toBe('');
+  });
+});
+
 describe('applySnippetRules', () => {
-  const result = {
+  const result: Parameters<typeof applySnippetRules>[0] = {
     total: 3,
     entities: [
       { id: 'a', searchExtra: { highlight: { _text: ['Mr <mark>Neville</mark> <mark>Bonner</mark>'] } } },
@@ -45,34 +91,18 @@ describe('applySnippetRules', () => {
       { id: 'c', searchExtra: {} },
     ],
   };
-  const sources = new Map([
-    [
-      'a',
-      {
-        id: 'a',
-        isBasedOn: [
-          { '@value': 'https://example.org/wp53.pdf' },
-          { '@id': 'https://example.org/a' },
-          'https://example.org/b',
-        ],
-      },
-    ],
-  ]);
 
-  it('excludes basic keyword results without a document snippet and adds isBasedOn', () => {
-    const applied = applySnippetRules(result, { searchType: 'basic', query: 'Neville Bonner' }, sources);
+  it('excludes basic keyword results without a document snippet and condenses snippets', () => {
+    const applied = applySnippetRules(result, { searchType: 'basic', query: 'Neville Bonner' });
     expect(applied.total).toBe(1);
     expect(applied.entities.map((e) => e.id)).toEqual(['a']);
-    expect((applied.entities[0] as any).isBasedOn).toEqual([
-      'https://example.org/wp53.pdf',
-      'https://example.org/a',
-      'https://example.org/b',
-    ]);
+    expect(applied.entities[0]?.searchExtra?.highlight?._text).toEqual(['Mr <mark>Neville</mark> Bonner']);
+    expect(applied.entities[0]).not.toHaveProperty('isBasedOn');
   });
 
   it('keeps every result for browse and advanced searches', () => {
-    expect(applySnippetRules(result, { searchType: 'basic', query: '' }, sources).entities).toHaveLength(3);
-    expect(applySnippetRules(result, { searchType: 'advanced', query: 'law' }, sources).entities).toHaveLength(3);
+    expect(applySnippetRules(result, { searchType: 'basic', query: '' }).entities).toHaveLength(3);
+    expect(applySnippetRules(result, { searchType: 'advanced', query: '_text: (law)' }).entities).toHaveLength(3);
   });
 });
 
@@ -87,8 +117,8 @@ describe('registerSnippetSearch', () => {
             hits: {
               hits: [
                 {
-                  _source: { id: 'a', isBasedOn: [{ '@value': 'https://example.org/wp53.pdf' }] },
-                  highlight: { _text: ['<mark>Bonner</mark>'] },
+                  _source: { id: 'a' },
+                  highlight: { _text: ['Mr <mark>Bonner</mark> and Mr <mark>Bonner</mark>'] },
                 },
                 { _source: { id: 'b' } },
               ],
@@ -98,7 +128,7 @@ describe('registerSnippetSearch', () => {
       },
     }) as unknown as Client;
 
-  it('injects the snippet highlight and enriches the search route response', async () => {
+  it('injects the snippet highlight and condenses the search route response', async () => {
     const calls: any[] = [];
     const client = withSnippets(fakeClient(calls));
     expect((client as any).name).toBe('fake');
@@ -118,17 +148,11 @@ describe('registerSnippetSearch', () => {
     expect(calls[0].body).toEqual({
       query: { match_all: {} },
       highlight: snippetHighlight,
-      _source: ['id', 'isBasedOn'],
+      _source: ['id'],
     });
     expect(response.json()).toEqual({
       total: 1,
-      entities: [
-        {
-          id: 'a',
-          searchExtra: { highlight: { _text: ['<mark>Bonner</mark>'] } },
-          isBasedOn: ['https://example.org/wp53.pdf'],
-        },
-      ],
+      entities: [{ id: 'a', searchExtra: { highlight: { _text: ['Mr <mark>Bonner</mark> and Mr Bonner'] } } }],
     });
     await fastify.close();
   });

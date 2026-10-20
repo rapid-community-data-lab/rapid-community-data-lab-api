@@ -35,7 +35,10 @@ const fastify = Fastify({
     // routerOptions: {
     //   ignoreTrailingSlash: true,
     // }
-  }
+  },
+  routerOptions: {
+    maxParamLength: 768,
+  },
 });
 export const logger = fastify.log;
 

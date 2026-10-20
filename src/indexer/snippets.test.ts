@@ -7,9 +7,15 @@ import {
   condenseSnippet,
   registerSnippetSearch,
   SNIPPET_MAX_WORDS,
+  SNIPPETS_PER_RESULT,
   snippetHighlight,
   withSnippets,
 } from './snippets.ts';
+
+const receiptOfEvidence = (mark: string) =>
+  `the proceedings, Judge McGuire invited Mr ${mark} AO, the then Chairman of the Indigenous Advisory Council, to act as an observer and assistant to the Court. Judge McGuire in the Court’s 1996-1997 Annual Report described the experience:721 ... Mr <mark>Bonner</mark>, at my suggestion spoke to the child and`;
+const receiptOfEvidenceSnippet =
+  'the proceedings, Judge McGuire invited Mr <mark>Neville Bonner</mark> AO, the then Chairman of the Indigenous Advisory Council, to act as an observer and assistant to the Court. Judge McGuire in the Court’s 1996-1997 Annual Report described the experience:721 ... Mr';
 
 const wordCount = (snippet: string) =>
   snippet
@@ -69,6 +75,21 @@ describe('condenseSnippet', () => {
     expect(snippet).toBe('Mr Bonner met Mr <mark>Neville Bonner</mark> AO and Mr Bonner');
   });
 
+  it('joins highlighted words separated only by whitespace into one highlight', () => {
+    expect(condenseSnippet('Mr <mark>Neville</mark>\n <mark>Bonner</mark>, <mark>Bonner</mark> AO')).toBe(
+      'Mr <mark>Neville Bonner</mark>, Bonner AO',
+    );
+  });
+
+  it.each([
+    ['basic', '<mark>Neville Bonner</mark>'],
+    ['advanced', '<mark>Neville</mark> <mark>Bonner</mark>'],
+  ])('condenses the %s search fragment to the same single-highlight snippet', (_, mark) => {
+    const snippet = condenseSnippet(receiptOfEvidence(mark));
+    expect(snippet).toBe(receiptOfEvidenceSnippet);
+    expect(markCount(snippet)).toBe(1);
+  });
+
   it('keeps html entities intact and handles highlights at the edges', () => {
     expect(condenseSnippet('<mark>Drs</mark> S &amp; P Kershaw')).toBe('<mark>Drs</mark> S &amp; P Kershaw');
     const tail = condenseSnippet(`${filler('w', 80)} (<mark>Bonner</mark>)`);
@@ -96,8 +117,30 @@ describe('applySnippetRules', () => {
     const applied = applySnippetRules(result, { searchType: 'basic', query: 'Neville Bonner' });
     expect(applied.total).toBe(1);
     expect(applied.entities.map((e) => e.id)).toEqual(['a']);
-    expect(applied.entities[0]?.searchExtra?.highlight?._text).toEqual(['Mr <mark>Neville</mark> Bonner']);
+    expect(applied.entities[0]?.searchExtra?.highlight?._text).toEqual(['Mr <mark>Neville Bonner</mark>']);
     expect(applied.entities[0]).not.toHaveProperty('isBasedOn');
+  });
+
+  it('keeps only the top snippet for each result', () => {
+    const applied = applySnippetRules(
+      {
+        total: 1,
+        entities: [
+          {
+            id: 'a',
+            searchExtra: {
+              highlight: {
+                _text: [' \n ', receiptOfEvidence('<mark>Neville Bonner</mark>'), 'Mr <mark>Bonner</mark> retired'],
+              },
+            },
+          },
+        ],
+      },
+      { searchType: 'advanced', query: '_text: (Neville Bonner)' },
+    );
+    expect(SNIPPETS_PER_RESULT).toBe(1);
+    expect(snippetHighlight.fields._text.number_of_fragments).toBe(1);
+    expect(applied.entities[0]?.searchExtra?.highlight?._text).toEqual([receiptOfEvidenceSnippet]);
   });
 
   it('keeps every result for browse and advanced searches', () => {
@@ -118,7 +161,9 @@ describe('registerSnippetSearch', () => {
               hits: [
                 {
                   _source: { id: 'a' },
-                  highlight: { _text: ['Mr <mark>Bonner</mark> and Mr <mark>Bonner</mark>'] },
+                  highlight: {
+                    _text: ['Mr <mark>Bonner</mark> and Mr <mark>Bonner</mark>', 'Mr <mark>Bonner</mark> AO'],
+                  },
                 },
                 { _source: { id: 'b' } },
               ],

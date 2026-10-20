@@ -4,6 +4,7 @@ import { hasSearchTerms } from './query_builder.ts';
 
 export const SNIPPET_FIELD = '_text';
 export const SNIPPET_MAX_WORDS = 40;
+export const SNIPPETS_PER_RESULT = 1;
 
 const MARK_OPEN = '<mark>';
 const MARK_CLOSE = '</mark>';
@@ -16,7 +17,7 @@ export const snippetHighlight = {
     [SNIPPET_FIELD]: {
       type: 'fvh',
       fragment_size: 300,
-      number_of_fragments: 3,
+      number_of_fragments: SNIPPETS_PER_RESULT,
       order: 'score',
     },
   },
@@ -48,7 +49,13 @@ const parseMarks = (fragment: string) => {
 
   for (const part of fragment.split(/(<mark>|<\/mark>)/)) {
     if (part === MARK_OPEN) {
-      openedAt = text.length;
+      const previous = marks.at(-1);
+      if (previous && !text.slice(previous.end).trim()) {
+        marks.pop();
+        openedAt = previous.start;
+      } else {
+        openedAt = text.length;
+      }
     } else if (part === MARK_CLOSE) {
       if (openedAt >= 0 && text.length > openedAt) marks.push({ start: openedAt, end: text.length });
       openedAt = -1;
@@ -118,7 +125,10 @@ const condenseHighlight = (entity: SearchEntity): SearchEntity => {
       ...entity.searchExtra,
       highlight: {
         ...entity.searchExtra?.highlight,
-        [SNIPPET_FIELD]: fragments.map((fragment) => condenseSnippet(fragment)).filter(Boolean),
+        [SNIPPET_FIELD]: fragments
+          .map((fragment) => condenseSnippet(fragment))
+          .filter(Boolean)
+          .slice(0, SNIPPETS_PER_RESULT),
       },
     },
   };

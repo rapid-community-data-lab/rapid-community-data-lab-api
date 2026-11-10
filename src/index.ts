@@ -42,7 +42,9 @@ const fastify = Fastify({
 });
 export const logger = fastify.log;
 
-const appOpt: Options = {
+const appOpt: Options & {
+  isAdminEnabled: (id: number) => Promise<boolean>;
+} = {
   prisma,
   opensearch,
   disableCors: true,
@@ -62,6 +64,12 @@ const appOpt: Options = {
     }
   ],
   fileHandler,
+  isAdminEnabled: async (id: number) => {
+    const rows = await prisma.$queryRaw<Array<{ enabled: boolean }>>`
+      SELECT enabled FROM admin_users WHERE id = ${id}
+    `;
+    return rows[0]?.enabled === true;
+  },
   // Required: RO-Crate handler for serving RO-Crate metadata
   roCrateHandler: {
     get: async (entity) => {
@@ -188,4 +196,3 @@ function buildMinimalROCrateFromOS(id: string, src: Record<string, unknown>) {
     process.exit(1)
   }
 })();
-

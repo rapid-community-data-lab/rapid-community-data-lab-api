@@ -2,15 +2,15 @@
 // Both APIs share the same PostgreSQL database, so lab-api must include it in
 // its Prisma schema to prevent db push from treating the table as unmanaged.
 enum AdminRole {
-  ADMIN
-  SUPER_ADMIN
+  INDEX_ADMIN
+  ROLES_ADMIN
 }
 
 model AdminUser {
   id        Int       @id @default(autoincrement())
   email     String    @unique
   password  String
-  role      AdminRole @default(ADMIN)
+  role      AdminRole @default(INDEX_ADMIN)
   enabled   Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

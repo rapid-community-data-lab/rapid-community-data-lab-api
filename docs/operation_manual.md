@@ -129,11 +129,7 @@ The admin API stores administrator accounts in PostgreSQL's `admin_users`
 table and exposes:
 
 - `POST /login`, returning a JWT valid for one hour;
-- `POST /create-admin`, used by the Manage Admins page to create an account;
-- `GET /admins`, used by the Manage Admins page to list accounts;
-- `DELETE /admins/:id`, used by a Roles Admin to disable an account without
-  deleting its row;
-- `PATCH /admins/:id/enable`, used by a Roles Admin to re-enable an account;
+- `POST /create-admin`, for an authenticated administrator;
 - `GET /health`, returning `{"status":"ok"}`.
 
 These are authentication and service-health routes only. They are separate
@@ -144,7 +140,7 @@ lists objects or starts/deletes indexing.
 
 The admin API and repository API must use exactly the same
 `API_AUTH_JWT_SECRET`. The repository API accepts only JWTs with the
-`INDEX_ADMIN` or `ROLES_ADMIN` role on `/admin/*`.
+`ADMIN` or `SUPER_ADMIN` role on `/admin/*`.
 
 ## 2. Setting up a development environment
 

@@ -6,7 +6,7 @@ import { z } from 'zod/v4';
 import { config } from '../configuration.ts';
 import type { Repository } from '../repository.ts';
 
-type AdminRole = 'INDEX_ADMIN' | 'ROLES_ADMIN';
+type AdminRole = 'ADMIN' | 'SUPER_ADMIN';
 
 type AdminToken = jwt.JwtPayload & {
   id: string | number;
@@ -15,8 +15,7 @@ type AdminToken = jwt.JwtPayload & {
 };
 
 const isAdminRole = (role: unknown): role is AdminRole =>
-  role === 'INDEX_ADMIN' ||
-  role === 'ROLES_ADMIN';
+  role === 'ADMIN' || role === 'SUPER_ADMIN';
 
 export function verifyAdminToken(authorization: string | undefined): AdminToken | null {
   if (!config.apiAuthJwtSecret || !authorization?.startsWith('Bearer ')) {
@@ -41,31 +40,14 @@ export function verifyAdminToken(authorization: string | undefined): AdminToken 
   }
 }
 
-export type AdminRouteOptions = {
-  prefix: string;
-  repository: Repository;
-  isAdminEnabled?: (id: number) => Promise<boolean>;
-};
-
-export const admin: FastifyPluginAsync<AdminRouteOptions> = async (fastify, opts) => {
+export const admin: FastifyPluginAsync<{ prefix: string; repository: Repository }> = async (fastify, opts) => {
   //console.log(opts);
   const repo = opts.repository;
   const app = fastify.withTypeProvider<ZodTypeProvider>();
   app.addHook('preHandler', async (request, reply) => {
-    const token = verifyAdminToken(request.headers.authorization);
-
-    if (!token) {
+    if (!verifyAdminToken(request.headers.authorization)) {
       return reply.status(401).send({ message: 'Invalid or missing authentication token.' });
     }
-
-    if (opts.isAdminEnabled) {
-      const id = Number(token.id);
-      const enabled = Number.isInteger(id) && await opts.isAdminEnabled(id);
-      if (!enabled) {
-        return reply.status(401).send({ message: 'Invalid or missing authentication token.' });
-      }
-    }
-
   });
 
   app.get('/repository/', async (request, reply) => reply.redirect('../repository', 301));

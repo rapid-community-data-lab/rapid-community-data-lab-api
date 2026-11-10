@@ -2,11 +2,12 @@ import Fastify from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import jwt from 'jsonwebtoken';
 import { beforeAll, describe, expect, it } from 'vitest';
+import type { Repository } from '../repository.ts';
 
 const sharedSecret = 'admin-and-lab-api-test-secret';
 process.env.API_AUTH_JWT_SECRET = sharedSecret;
 const { admin, verifyAdminToken } = await import('./admin.ts');
-const makeToken = (role: 'ADMIN' | 'SUPER_ADMIN', secret = sharedSecret) =>
+const makeToken = (role: 'INDEX_ADMIN' | 'ROLES_ADMIN', secret = sharedSecret) =>
   jwt.sign(
     { id: 1, email: `${role.toLowerCase()}@example.com`, role },
     secret,
@@ -21,12 +22,12 @@ describe('admin JWT authentication', () => {
     process.env.API_AUTH_JWT_SECRET = sharedSecret;
   });
 
-  it.each(['ADMIN', 'SUPER_ADMIN'] as const)('accepts a %s token', (role) => {
+  it.each(['INDEX_ADMIN', 'ROLES_ADMIN'] as const)('accepts a %s token', (role) => {
     expect(verifyAdminToken(`Bearer ${makeToken(role)}`)?.role).toBe(role);
   });
 
   it('rejects a token signed with a different secret', () => {
-    const token = makeToken('ADMIN', 'a-different-secret');
+    const token = makeToken('INDEX_ADMIN', 'a-different-secret');
     expect(verifyAdminToken(`Bearer ${token}`)).toBeNull();
   });
 
@@ -44,7 +45,7 @@ describe('admin JWT authentication', () => {
       getIndexerState: async () => null,
       createIndex: () => undefined,
       deleteIndex: () => undefined,
-    };
+    } as unknown as Repository;
     const app = Fastify();
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
@@ -59,9 +60,47 @@ describe('admin JWT authentication', () => {
     const authorized = await app.inject({
       method: 'GET',
       url: '/admin/repository',
-      headers: { authorization: `Bearer ${makeToken('SUPER_ADMIN')}` }
+      headers: { authorization: `Bearer ${makeToken('ROLES_ADMIN')}` }
     });
     expect(authorized.statusCode).toBe(200);
     expect(authorized.json()).toEqual([]);
+  });
+
+  it('checks the account enabled status for existing tokens', async () => {
+    const repository = {
+      async *objects() {},
+      getIndexerState: async () => null,
+      createIndex: () => undefined,
+      deleteIndex: () => undefined,
+    } as unknown as Repository;
+    const app = Fastify();
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
+    await app.register(admin, {
+      prefix: '/admin',
+      repository,
+      isAdminEnabled: async (id) => id === 1,
+    });
+
+    const disabled = await app.inject({
+      method: 'GET',
+      url: '/admin/repository',
+      headers: { authorization: `Bearer ${makeToken('ROLES_ADMIN')}` },
+    });
+
+    expect(disabled.statusCode).toBe(200);
+
+    const otherAccountToken = jwt.sign(
+      { id: 2, email: 'disabled@example.com', role: 'ROLES_ADMIN' },
+      sharedSecret,
+      { expiresIn: '1h' },
+    );
+    const rejected = await app.inject({
+      method: 'GET',
+      url: '/admin/repository',
+      headers: { authorization: `Bearer ${otherAccountToken}` },
+    });
+
+    expect(rejected.statusCode).toBe(401);
   });
 });

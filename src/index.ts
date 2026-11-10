@@ -65,10 +65,11 @@ const appOpt: Options & {
   ],
   fileHandler,
   isAdminEnabled: async (id: number) => {
-    const rows = await prisma.$queryRaw<Array<{ enabled: boolean }>>`
-      SELECT enabled FROM admin_users WHERE id = ${id}
-    `;
-    return rows[0]?.enabled === true;
+    const admin = await prisma.adminUser.findUnique({
+      where: { id },
+      select: { enabled: true },
+    });
+    return admin?.enabled === true;
   },
   // Required: RO-Crate handler for serving RO-Crate metadata
   roCrateHandler: {

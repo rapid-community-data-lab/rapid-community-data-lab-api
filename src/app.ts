@@ -8,7 +8,7 @@ import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod
 import type { File } from './generated/prisma/client.ts';
 import { logger } from './index.ts';
 import { initRepository, type Repository } from './repository.ts';
-import { admin } from './routes/admin.ts';
+import { admin, type AdminRouteOptions } from './routes/admin.ts';
 
 // declare module 'fastify' {
 //   interface FastifyInstance {
@@ -22,6 +22,7 @@ export type LdacapiOptions = {
   disableCors?: boolean;
   accessTransformer: AccessTransformer;
   entityTransformers?: EntityTransformer[];
+  isAdminEnabled?: AdminRouteOptions['isAdminEnabled'];
 };
 
 let repository: Repository;
@@ -43,7 +44,11 @@ const ldacapi: FastifyPluginAsync<LdacapiOptions> = async (fastify, options: Lda
 
   const { version } = pkg;
   fastify.get('/version', async () => ({ version }));
-  fastify.register(admin, { prefix: '/admin', repository });
+  fastify.register(admin, {
+    prefix: '/admin',
+    repository,
+    isAdminEnabled: options.isAdminEnabled,
+  });
 
 };
 
